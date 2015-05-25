@@ -8,7 +8,13 @@
 using namespace std;
 
 
-/// Self review:  Why did ifstream and fstream give me such different results?
+/// Future work: It seems like it would be a nice language feature to
+/// be able to do something like:
+///
+/// std::find_if (istream_iterator beg, istream_iterator beg, regex_expression)
+///
+/// Alternative implementation: read in a vector of strings, use std
+/// finds, and then replace and then write.
 
 /// If negative, we couldn't find an old style include guard, which is
 /// a reasonable outcome, and not necessarily an exception.
@@ -42,7 +48,7 @@ int find_include_guard(fstream& ifstrm)
     }
   return -1;
 }
-
+  
 /// Returns the number of lines parsed over until the closing endif is
 /// found.  Throws an exception if none is found.
 unsigned int find_closing_endif(fstream& instrm)
@@ -55,7 +61,7 @@ unsigned int find_closing_endif(fstream& instrm)
     {
       if(regex_search(line, closing_regex))
 	{
-	  return counter;
+	  retval = counter;  // we want to replace the last occurence.
 	}
       ++counter;
     }
@@ -81,15 +87,18 @@ void write_modified_file(const string& fname,
 	  getline(infile, discard);
 	  getline(infile, discard);
 	  ++counter;
-	}else if(counter==closing_endif){
-	getline(infile, discard);
-      }
-      else{
-	outfile << line << "\n";
-      }
+	}
+      else if(counter==closing_endif)
+	  getline(infile, discard);
+      else
+	{
+	  outfile << line << "\n";
+	}
       ++counter;
     }
 }
+
+
 
 /// Change include guards in filename to "#pragma once
 void change_include_guards(const string fname)
