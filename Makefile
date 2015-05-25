@@ -1,2 +1,2 @@
-change_in_guards:	 cig.cpp
-	g++ -std=c++11 cig.cpp -lboost_filesystem -lboost_system
+cig: change_include_guards.cpp
+	g++ -ggdb -std=c++11 -o cig change_include_guards.cpp -lboost_filesystem -lboost_system
