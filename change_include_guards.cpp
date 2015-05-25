@@ -4,118 +4,92 @@
 #include <sstream>
 #include <iostream>
 #include <boost/filesystem.hpp>
+#include <algorithm>
 
 using namespace std;
 
 
-/// Future work: It seems like it would be a nice language feature to
-/// be able to do something like:
-///
-/// std::find_if (istream_iterator beg, istream_iterator beg, regex_expression)
-///
-/// Alternative implementation: read in a vector of strings, use std
-/// finds, and then replace and then write.
-
-/// If negative, we couldn't find an old style include guard, which is
-/// a reasonable outcome, and not necessarily an exception.
-/// Otherwise returns the line number at which the include guard is found.
-/// An old school include guard is defined as:
-///     #ifndef XXX
-///     #define XXX
-/// i.e. it's always over 2 lines, we return the line number (zero
-/// indexed) of the first
-int find_include_guard(fstream& ifstrm)
+void write_modified_file(string fname, vector<string> lines)
 {
-  string line;
-  unsigned int counter=0;
-  smatch ifndef_match;
-  regex ifndef_regex{"^#ifndef (.*)"};
-  while (getline(ifstrm, line))
-    {
-      if(regex_search(line, ifndef_match,  ifndef_regex))
-	{
-	  if (!getline(ifstrm, line))
-	    throw runtime_error("ifndef at eof");
-	  // make a string that says #define 'whatever'
-	  regex subber_regex { "^#ifndef(.*)"};
-	  string defstr = regex_replace(line, subber_regex, "#define");
-	  regex define_regex{defstr};
-	  if (regex_search(line, define_regex))
-	    return counter;
-	  ++counter;
-	}
-      ++counter;
-    }
-  return -1;
-}
-  
-/// Returns the number of lines parsed over until the closing endif is
-/// found.  Throws an exception if none is found.
-unsigned int find_closing_endif(fstream& instrm)
-{
-  unsigned int retval{0};
-  unsigned int counter{0};
-  regex closing_regex{"^#endif"};
-  std::string line;
-  while (getline(instrm, line))
-    {
-      if(regex_search(line, closing_regex))
-	{
-	  retval = counter;  // we want to replace the last occurence.
-	}
-      ++counter;
-    }
-  if(retval==0)
-    throw std::runtime_error("Did not find closing endif");
-  return retval; // silence warnings.
-}
-
-void write_modified_file(const string& fname,
-			 unsigned int include_guard,
-			 unsigned int closing_endif)
-{
-  unsigned int counter{0};
-  ofstream outfile(fname + ".tmp");
-  fstream infile (fname);
-  string discard;
-  string line;
+  ofstream outfile(fname);
   outfile << "#pragma once\n";
-  while (getline(infile, line))
+  for (auto line : lines)
     {
-      if(counter==include_guard)
-	{
-	  getline(infile, discard);
-	  getline(infile, discard);
-	  ++counter;
-	}
-      else if(counter==closing_endif)
-	  getline(infile, discard);
-      else
-	{
-	  outfile << line << "\n";
-	}
-      ++counter;
+      outfile << line << "\n";
     }
 }
 
 
+vector<string> read_file(const string& fname)
+{
+  fstream infile(fname);
+  vector<string> lines;
+  string line;
+  while (getline(infile, line))
+    lines.push_back(line);
+  return lines;
+}
+
+template <typename iterT>
+bool has_matching_define( iterT line)
+{
+  regex subber_regex { "^#ifndef(.*)"};
+  string defstr = regex_replace(*line, subber_regex, "#define");
+  regex define_regex{defstr};
+  ++line;
+  if (regex_search(*line, define_regex))
+    return true;
+  return false;
+}
+
+/// return false if unable to remove include guard.
+bool remove_include_guard(vector<string>& lines)
+{
+  const auto ifndef_pos =
+    find_if(lines.begin(), lines.end(), [](string l) {
+	return regex_match(l.begin(), l.end(), regex{"#ifndef (.*)"}); });
+  if (ifndef_pos == lines.end())
+    return false; 
+  if (!has_matching_define(ifndef_pos))
+    {
+      auto temp = ifndef_pos;
+      cerr << "warning:  found :" << *ifndef_pos << ", but following line is: "
+	   << *(ifndef_pos+1)  << "which doesn't fit include guard pattern.\n";
+      return false;
+    }
+  lines.erase(ifndef_pos, ifndef_pos+2);
+  return true;
+}
+
+// return false if couldn't remove endif statement.
+bool remove_endif(vector<string>& lines)
+{
+  auto closing_pos = find_if(lines.rbegin(), lines.rend(), [](string& line)
+			     {return regex_match(line.begin(), line.end(), regex{"#endif.*"});} );
+  if (closing_pos == lines.rend())
+    {
+      cerr << "Warning, found : " << *closing_pos << "but couldn't find a closing #endif.\n";
+      return false;
+    }
+  lines.erase((--closing_pos.base()));
+  return true;
+}
 
 /// Change include guards in filename to "#pragma once
 void change_include_guards(const string fname)
 {
-  fstream infile(fname);
-  int include_guard = find_include_guard(infile);
-  if ( include_guard < 0 )
+  vector<string> lines = read_file(fname);
+  if (remove_include_guard(lines))
     {
-      cerr << fname << " does not have an old-school include guard\n";
-      return;
+      if( remove_endif(lines) )
+	{
+	  std::string temp_fname = fname + ".tmp";
+	  write_modified_file(temp_fname, lines);
+	  boost::filesystem::rename( temp_fname,fname);
+	}
     }
-  unsigned int closing_endif = find_closing_endif(infile);
-  infile.close();
-  std::string ofname = fname + ".tmp";
-  write_modified_file(fname, include_guard, closing_endif);
-  boost::filesystem::rename( ofname,fname);
 }
+
 
 int main (int argc, char** argv)
 {
