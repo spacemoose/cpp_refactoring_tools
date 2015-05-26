@@ -19,9 +19,6 @@ with the more modern, widely supported
 
 # Compiling
   easy makefile provided.  Should be trivial to adapt to other compilers.
-  
-# Usage
-  is really easy.   Here's how I use it from bash:
-     find . -name "*h" | xargs cig
 
-  
+# Usage
+     $cig <filenames>
