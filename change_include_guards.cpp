@@ -1,34 +1,14 @@
-#include <fstream>
+#include "filestuff.hpp"
+
+#include <vector>
 #include <string>
+#include <fstream>
 #include <regex>
 #include <sstream>
 #include <iostream>
-#include <boost/filesystem.hpp>
 #include <algorithm>
 
 using namespace std;
-
-
-void write_modified_file(string fname, vector<string> lines)
-{
-  ofstream outfile(fname);
-  outfile << "#pragma once\n";
-  for (auto line : lines)
-    {
-      outfile << line << "\n";
-    }
-}
-
-
-vector<string> read_file(const string& fname)
-{
-  fstream infile(fname);
-  vector<string> lines;
-  string line;
-  while (getline(infile, line))
-    lines.push_back(line);
-  return lines;
-}
 
 template <typename iterT>
 bool has_matching_define( iterT line)
@@ -64,8 +44,9 @@ bool remove_include_guard(vector<string>& lines)
 // return false if couldn't remove endif statement.
 bool remove_endif(vector<string>& lines)
 {
-  auto closing_pos = find_if(lines.rbegin(), lines.rend(), [](string& line)
-			     {return regex_match(line.begin(), line.end(), regex{"#endif.*"});} );
+  auto closing_pos =
+    find_if(lines.rbegin(), lines.rend(), [](string& line)
+	    {return regex_match(line.begin(), line.end(), regex{"#endif.*"});} );
   if (closing_pos == lines.rend())
     {
       cerr << "Warning, found : " << *closing_pos << "but couldn't find a closing #endif.\n";
@@ -78,18 +59,11 @@ bool remove_endif(vector<string>& lines)
 /// Change include guards in filename to "#pragma once
 void change_include_guards(const string fname)
 {
-  vector<string> lines = read_file(fname);
+  vector<string> lines = filestuff::read_file(fname);
   if (remove_include_guard(lines))
-    {
-      if( remove_endif(lines) )
-	{
-	  std::string temp_fname = fname + ".tmp";
-	  write_modified_file(temp_fname, lines);
-	  boost::filesystem::rename( temp_fname,fname);
-	}
-    }
+    if( remove_endif(lines) )
+      filestuff::finalize_file(fname, lines);
 }
-
 
 int main (int argc, char** argv)
 {
