@@ -1,0 +1,17 @@
+* Update the for loop
+
+** Different types:
+   - 0 :: iter declaration in for definition.
+   - 1 :: iter declared before for loop.
+   - 2 :: index counter in for loop.
+   - 3 :: index counter outside for loop (harder).
+
+** Iter declaration in for loop.
+   Follows the pattern:
+
+   for ( iter-typename iter-name = container_name.begin();
+         iter-name !=
+
+** Implementation challenges.
+
+   ter
