@@ -1,0 +1,113 @@
+#! /usr/bin/perl -w
+
+if ($#ARGV < 0)
+{
+    die "need to specify input file\n"
+}
+
+
+$cute_filename=$ARGV[0];
+$boost_filename = "test_$cute_filename";
+$temp_filename = "temp.cpp";
+
+parse_non_semicolon_separated( $cute_filename, $temp_filename );
+parse_semicolon_separated( $temp_filename , $boost_filename );
+
+#unlink $temp_filename;
+
+
+# This should be called first as it generates a temp file.
+sub parse_non_semicolon_separated
+{
+    open(INFILE,  $_[0] ) or die "can't open input file: $cute_filename\n";
+    open(OUTFILE, ">$_[1]" ) or die "can't open output file(w): temp\n";
+
+    # Line for line, substitue the cute assertions for their equivalent in
+    # boost: @todo need to check c++ lines, not cr lines.
+    while ($line = <INFILE>) {
+        # switch the cute include stuff to boost include stuff.
+        if ($line =~ q(external_libs/cute/cute.h) )
+        {
+            $line =~ s@#include "external_libs/cute/cute.h"@#define BOOST_TEST_MAIN@;
+            print OUTFILE $line;
+        }
+        elsif ($line =~ q(external_libs/cute/ide_listener.h) )
+        {
+            $line =~ s@#include "external_libs/cute/ide_listener.h"@#define BOOST_TEST_MODULE default@;
+            print OUTFILE $line;
+        }
+        elsif ($line =~ q(#include \"external_libs/cute/cute_runner.h\"))
+        {
+            $line =~ s@#include "external_libs/cute/cute_runner.h"@#include <boost/test/unit_test.hpp>@;
+            print OUTFILE $line;
+        }      
+        
+        # Take the pattern void fname() and turn it into
+        # BOOST_AUTO_TEST_CASE(fname) 
+        elsif ($line =~ /void\s+(.*)\(\)/)
+        {
+            $line =~ s#void#BOOST_AUTO_TEST_CASE(#;
+            $line =~ s#\(\)# \)#;
+            print OUTFILE $line;
+        }
+        # clear out the make_suit_... cruft
+        elsif ($line =~/make_suite_.+\(\)/)
+        {
+            while (! ($line =~ /}/) )
+            {
+                $line = <INFILE>;
+            }
+        }              
+        else  # print line unmodified
+        {
+            print OUTFILE $line;      
+#       print "\n===========\nline is: XXX $line XXX";
+        } 
+    }
+}
+
+
+sub parse_semicolon_separated
+{
+    open(INFILE,  $_[0] )  or die "can't open input file(r): temp\n";
+    open(OUTFILE, ">$_[1]" ) or die "can't open output file: $boost_filename\n";
+
+    # we assume there are no semicolons which aren't separating
+    # operators: 
+    $/ = ';';
+
+    while ($line = <INFILE>) {
+        # Take the patern ASSERT( ...whatever... ); and convert it to
+        # BOOST_CHECK
+        if ($line =~ /ASSERT\b/)
+        {
+            $line =~ s#ASSERT\s*\(#BOOST_CHECK(#;
+            print OUTFILE $line;
+        }
+
+        # ASSERTM( ARG1, ARG2 ) converts to BOOST_
+        elsif ($line =~/ASSERTM\b/)
+        {
+            $line =~ s/ASSERTM\s*\((\"[^"]*\")\s*,\s*(.*)\);/BOOST_CHECK_MESSAGE( $2, $1 );/;
+            print OUTFILE $line ;
+        }    
+        # ASSERT_EQUAL_DELTA converts to BOOST_CHECK_CLOSE:
+        elsif ($line =~/ASSERT_EQUAL_DELTA\b/)
+        {
+            $line =~ s/ASSERT_EQUAL_DELTA\s*\(([^,]+),([^,]+),(.+)\);/BOOST_CHECK_CLOSE( $1, $2, $3 );/; 
+            print OUTFILE   $line;  
+        }
+        # ASSERT_EQUAL converts to BOOST_CHECK
+        elsif ($line =~/ASSERT_EQUAL\b/)
+        {
+            $line =~ s/ASSERT_EQUAL\s*\(/BOOST_CHECK_EQUAL(/;
+            print OUTFILE $line;
+        }
+        else 
+        {
+            print OUTFILE $line;      
+#       print "\n===========\nline is: XXX $line XXX";
+        }
+
+    }
+}

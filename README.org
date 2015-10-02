@@ -1,0 +1,51 @@
+I recently had to work with a very large codebase, in which each and
+every file included a header file with the statement "using namespace
+std;" in it.
+
+This led to the situation that hundreds of header files, using std
+strings, pairs, etc, were using those items without any std::
+dereferencing.
+
+Cleaning this situation up by hand would have taken weeks and been
+error prone, so I wrote a little script to do it for me, and called it
+standardize.pl
+
+The variable possible_offenders is a list of std c++ names which are
+frequently in place in the code in question.
+
+The script recursively searches a directory for for .h and .cpp files.
+For cpp files, it checks if any of the possible_offenders occur in the
+file.  If so, it adds a "using namespace standard" directive if none
+exists.  Thus cpp files are changed minimally.
+
+For header files, all occurences of "using namespace std" are removed,
+and all occurences of possible_offenders are prefaced by an explicit
+std:: namespace specification.  Care is taken not to change occurences
+in comments or in quotations.
+
+The script can obviously be extended by extending the list of
+possible_offenders.  I'm far from being a PERL monk, so any of you out
+there who want to improve my perl style, I'd love to hear from you.# cleanup_tools
+
+I wanted to play around with c++ 11's regexe's, and I had a code base
+being compiled with lots of old school includes.  Some people had even
+taken to doing external ifdefs to reduce compile time.  So I wrote a
+little tool to change the include guards from the old style:
+
+       #ifndef some-identifier
+       #define some-identifier
+
+       /// code.
+
+       #endif
+
+
+with the more modern, widely supported
+
+     #pragma once
+
+# Compiling
+  easy makefile provided.  Should be trivial to adapt to other compilers.
+
+# Usage
+     $cig <filenames>
