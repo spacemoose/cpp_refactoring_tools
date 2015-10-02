@@ -1,3 +1,8 @@
+# Long, long ago in a company far, far away, someone had made the
+# chatastrophic error of using cute, a unit testing framework that
+# requires Eclipse.  This script migrates a cute unit test into a
+# boost unit test.
+
 #! /usr/bin/perl -w
 
 if ($#ARGV < 0)
@@ -40,10 +45,10 @@ sub parse_non_semicolon_separated
         {
             $line =~ s@#include "external_libs/cute/cute_runner.h"@#include <boost/test/unit_test.hpp>@;
             print OUTFILE $line;
-        }      
-        
+        }
+
         # Take the pattern void fname() and turn it into
-        # BOOST_AUTO_TEST_CASE(fname) 
+        # BOOST_AUTO_TEST_CASE(fname)
         elsif ($line =~ /void\s+(.*)\(\)/)
         {
             $line =~ s#void#BOOST_AUTO_TEST_CASE(#;
@@ -57,12 +62,12 @@ sub parse_non_semicolon_separated
             {
                 $line = <INFILE>;
             }
-        }              
+        }
         else  # print line unmodified
         {
-            print OUTFILE $line;      
+            print OUTFILE $line;
 #       print "\n===========\nline is: XXX $line XXX";
-        } 
+        }
     }
 }
 
@@ -73,7 +78,7 @@ sub parse_semicolon_separated
     open(OUTFILE, ">$_[1]" ) or die "can't open output file: $boost_filename\n";
 
     # we assume there are no semicolons which aren't separating
-    # operators: 
+    # operators:
     $/ = ';';
 
     while ($line = <INFILE>) {
@@ -90,12 +95,12 @@ sub parse_semicolon_separated
         {
             $line =~ s/ASSERTM\s*\((\"[^"]*\")\s*,\s*(.*)\);/BOOST_CHECK_MESSAGE( $2, $1 );/;
             print OUTFILE $line ;
-        }    
+        }
         # ASSERT_EQUAL_DELTA converts to BOOST_CHECK_CLOSE:
         elsif ($line =~/ASSERT_EQUAL_DELTA\b/)
         {
-            $line =~ s/ASSERT_EQUAL_DELTA\s*\(([^,]+),([^,]+),(.+)\);/BOOST_CHECK_CLOSE( $1, $2, $3 );/; 
-            print OUTFILE   $line;  
+            $line =~ s/ASSERT_EQUAL_DELTA\s*\(([^,]+),([^,]+),(.+)\);/BOOST_CHECK_CLOSE( $1, $2, $3 );/;
+            print OUTFILE   $line;
         }
         # ASSERT_EQUAL converts to BOOST_CHECK
         elsif ($line =~/ASSERT_EQUAL\b/)
@@ -103,9 +108,9 @@ sub parse_semicolon_separated
             $line =~ s/ASSERT_EQUAL\s*\(/BOOST_CHECK_EQUAL(/;
             print OUTFILE $line;
         }
-        else 
+        else
         {
-            print OUTFILE $line;      
+            print OUTFILE $line;
 #       print "\n===========\nline is: XXX $line XXX";
         }
 

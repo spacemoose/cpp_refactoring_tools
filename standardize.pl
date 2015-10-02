@@ -1,4 +1,18 @@
-#! /usr/bin/env perl
+# Long long ago, in a company far far away, I worked on a codebase
+# where developers had scattered "using namespace std;" statements
+# through their header files like rice at a wedding.
+#
+# At some point people realized what a bad idea this was, but by that
+# time there hundreds of these statements in thousands of files.  So I
+# created a little perl script that does the following:
+#
+# - if a header file has a "using namespace std" remove it.
+# - in the header file, look for places that might need a std::, and insert them.
+# - if a cpp file has stuff from the std without a std::, AND it has
+#   no using namespace std statement, insert such a statement after the last include.
+#
+#! /usr/bin/env
+#perl
 use warnings;
 use strict;
 use feature 'switch';
@@ -12,26 +26,26 @@ my @possible_offenders = (
 	"max",
 	"cout",
 	"cerr",
-	"string", 
-	"_Rb_tree", 
-	"initializer_list", 
-	"pair", 
-	"ostream", 
-	"equal_to", 
-	"ostringstream", 
-	"endl", 
-	"_Identity", 
-	"less", 
-	"function", 
-	"ifstream", 
-	"make_pair", 
-	"make_tuple", 
-	"tuple", 
-	"vector", 
-	"binary_function", 
-	"unary_function", 
-	"greater", 
-	"istream", 
+	"string",
+	"_Rb_tree",
+	"initializer_list",
+	"pair",
+	"ostream",
+	"equal_to",
+	"ostringstream",
+	"endl",
+	"_Identity",
+	"less",
+	"function",
+	"ifstream",
+	"make_pair",
+	"make_tuple",
+	"tuple",
+	"vector",
+	"binary_function",
+	"unary_function",
+	"greater",
+	"istream",
 	"ofstream",
 	"_Select1st",
 	"_Rb_tree_const_iterator"
@@ -112,14 +126,14 @@ sub insert_using_directive{
 	#write the new contents.
 	open (FILE, ">".$fname) or die "couln't write to ".$fname;
 	for(@lines){
-		print FILE 
+		print FILE
 	}
 	close FILE
-			
+
 }
 
 # a cpp file needs a "using namespace std" *after* all include
-# directives, if it has any 
+# directives, if it has any
 sub standardize_cpp
 {
 	if(!needs_using_directive($_[0])){
@@ -141,7 +155,7 @@ sub standardize_h
 	use File::Slurp 'read_file';
 	use File::Slurp 'write_file';
 	my @lines = read_file($_[0]);
-	
+
 	my $count =0;
 	my $commentLength = 0;
 
@@ -196,7 +210,7 @@ my @modified_files;
 my @untouched_files;
 my $modified = 0;
 foreach (@files_to_check){
-	
+
 	my $curname = $_;
  	if(/h$/){
 		$modified = standardize_h($curname);
@@ -209,4 +223,3 @@ foreach (@files_to_check){
 		push(@untouched_files, $curname);
 	}
 }
-
